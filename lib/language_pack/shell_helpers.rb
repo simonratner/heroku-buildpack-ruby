@@ -41,12 +41,23 @@ module LanguagePack
       end
     end
 
+    # run a shell command (deferring to #run), and raise an error if it fails
+    # @param [String] command to be run
+    # @return [String] result of #run
+    # @option options [Error] :error_class Class of error to raise, defaults to Standard Error
+    # @option options [Integer] :retries Number of times to retry before raising
     def run!(command, options = {})
-      result      = run(command, options)
-      error_class = options.delete(:error_class) || StandardError
+      result = run(command, options)
+      retries = options[:retries] || 0
+      error_class = options[:error_class] || StandardError
       unless $?.success?
-        message = "Command: '#{command}' failed unexpectedly:\n#{result}"
-        raise error_class, message
+        if options[:retries] > 0
+          puts "Command: '#{command}' failed, retrying #{retries} more time#{"s" if retries != 1}."
+          return run!(command, options.merge(retries: retries - 1))
+        else
+          message = "Command: '#{command}' failed unexpectedly:\n#{result}"
+          raise error_class, message
+        end
       end
       return result
     end
